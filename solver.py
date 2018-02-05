@@ -1,14 +1,14 @@
-def print_all(grid, *args):
-    if len(args) == 0:
+def print_all(grid, options):
+    if len(options) == 0:
         if grid.test():
             print(grid)
     else:
-        arg = args[0]
+        arg = options[0]
         for i in arg[1]:
             for a,b in zip(arg[0],i):
                 grid.set_clue(a,b)
             if grid.test():
-                print_all(grid, *args[1:])
+                print_all(grid, options[1:])
             for a in arg[0]:
                 grid.unset_clue(a)
 
@@ -31,7 +31,7 @@ class Solver:
             self.options.append((clues, options, descs))
 
     def find_solutions(self):
-        print_all(self.grid, *self.options)
+        print_all(self.grid, self.options)
 
     def as_latex(self):
         return self.grid.as_latex()
