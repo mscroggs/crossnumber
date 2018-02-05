@@ -45,6 +45,7 @@ class Crossnumber:
         if clue not in self.clues:
             raise NonexistentClue
         if len(str(answer)) != self.clues[clue]:
+            print(clue,answer)
             raise WrongLengthAnswer
         self.data[clue] = answer
 

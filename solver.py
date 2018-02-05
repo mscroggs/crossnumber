@@ -24,14 +24,47 @@ class Solver:
 
     def set_clue_options(self, clues, options, descs=None):
         if isinstance(clues, str):
-            self.options.append(([clues],[[i] for i in options],[descs]))
+            self.options.append(([clues],[[i] for i in options]))
+            self.clue_desc[clues] = descs
         else:
             if descs is None:
                 descs = [None for i in clues]
-            self.options.append((clues, options, descs))
+            self.options.append((clues, options))
+            for clue,desc in zip(clues,descs):
+                self.clue_desc[clue] = desc
+
 
     def find_solutions(self):
         print_all(self.grid, self.options)
 
     def as_latex(self):
-        return self.grid.as_latex()
+        out = self.grid.as_latex()
+        out += "\n\n"
+        out += "Across\n"
+        out += "\\begin{tabular}{>{\\bfseries}r p{5.8cm} >{\\bfseries}r}\n"
+        for i in range(len(self.grid.starts)):
+            key = "a"+str(i)
+            if key in self.grid.clues:
+                out += str(i)+"&"
+                try:
+                    out += self.clue_desc[key]
+                except:
+                    pass
+                out += "&(" + str(self.grid.clues[key]) + ")\\\\\n"
+        out += "\\end{tabular}"
+
+        out += "\n\n"
+        out += "Down\n"
+        out += "\\begin{tabular}{>{\\bfseries}r p{5.8cm} >{\\bfseries}r}\n"
+        for i in range(len(self.grid.starts)):
+            key = "d"+str(i)
+            if key in self.grid.clues:
+                out += str(i)+"&"
+                try:
+                    out += self.clue_desc[key]
+                except:
+                    pass
+                out += "&(" + str(self.grid.clues[key]) + ")\\\\\n"
+        out += "\\end{tabular}"
+
+        return out
