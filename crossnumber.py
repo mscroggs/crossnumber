@@ -89,3 +89,22 @@ class Crossnumber:
         out += "\n".join([u"\u2588"+"".join([self.get(a) for a in row])+u"\u2588" for row in self.grid])
         out += "\n" + u"\u2588"*(self.size+2)
         return out
+
+    def as_latex(self):
+        out = "\\begin{Puzzle}" + ("{"+str(self.size)+"}")*2
+        out += "\n"
+        for i,row in enumerate(self.grid):
+            for j,cell in enumerate(row):
+                out += "|"
+                if len(cell) == 0:
+                    out += "*"
+                else:
+                    out += "["
+                    n = self.n(i,j)
+                    if n is not None:
+                        out += str(self.n(i,j))
+                    out += "][wf]0"
+            out += "|.\n"
+        out += "\\end{Puzzle}"
+
+        return out
