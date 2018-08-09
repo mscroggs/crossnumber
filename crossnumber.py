@@ -109,3 +109,46 @@ class Crossnumber:
         out += "\\end{Puzzle}"
 
         return out
+
+    def as_html(self):
+        out = "\\begin{Puzzle}" + ("{"+str(self.size)+"}")*2
+        out += "\n"
+        for i,row in enumerate(self.grid):
+            for j,cell in enumerate(row):
+                out += "|"
+                if len(cell) == 0:
+                    out += "*"
+                else:
+                    out += "["
+                    n = self.n(i,j)
+                    if n is not None:
+                        out += str(self.n(i,j))
+                    out += "][wf]0"
+            out += "|.\n"
+        out += "\\end{Puzzle}"
+
+        return out
+
+    def solution_as_html(self):
+        out = "<table class='crossnumber'>\n<tbody>\n"
+        for i,row in enumerate(self.grid):
+            out += "<tr>\n"
+            for j,cell in enumerate(row):
+                if len(cell) == 0:
+                    out += "<td class='black'>"
+                else:
+                    out += "<td>"
+                    out += self.get(cell)
+                out += "</td>\n"
+            out += "</tr>\n"
+        out += "</tbody>\n</table>"
+
+        return out
+
+    def save_latex(self, filename):
+        with open(filename,"w") as f:
+            f.write(self.as_latex())
+
+    def save_html(self, filename):
+        with open(filename,"w") as f:
+            f.write(self.as_html())

@@ -12,6 +12,23 @@ def print_all(grid, options):
             for a in arg[0]:
                 grid.unset_clue(a)
 
+def get_solution(grid, options):
+    if len(options) == 0:
+        if grid.test():
+            return grid
+    else:
+        arg = options[0]
+        for i in arg[1]:
+            for a,b in zip(arg[0],i):
+                grid.set_clue(a,b)
+            if grid.test():
+                out = get_solution(grid, options[1:])
+                if out is not None:
+                    return out
+            for a in arg[0]:
+                grid.unset_clue(a)
+
+
 class Solver:
     def __init__(self, grid):
         self.grid = grid
@@ -36,6 +53,12 @@ class Solver:
 
     def find_solutions(self):
         print_all(self.grid, self.options)
+
+    def as_html(self):
+        out = self.grid.as_html()
+
+    def solution_as_html(self):
+        return get_solution(self.grid, self.options).solution_as_html()
 
     def as_latex(self):
         out = self.grid.as_latex()
