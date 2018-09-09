@@ -70,7 +70,7 @@ class Crossnumber:
             cell = self.grid[i[0]][i[1]]
             for a in cell:
                 b = self.data[a[0]+str(a[1])]
-                if b is not None and str(b)[0]=="0":
+                if b is not None and str(b)[a[2]]=="0":
                     return False
         return True
 
