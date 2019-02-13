@@ -9,6 +9,24 @@ class Crossnumber:
         self.size = size
         self.across = []
         self.down = []
+        self.distinct = []
+
+    def set_desire(self, dtype, *args):
+        if dtype == "distinct":
+            self.distinct.append(args)
+
+    def plot(self):
+        import matplotlib.pylab as plt
+        for i in range(self.size+1):
+            plt.plot([i,i],[0,self.size],"k")
+            plt.plot([0,self.size],[i,i],"k")
+        for x in range(self.size):
+            for y in range(self.size):
+                if len(self.grid[-y][x]) == 0:
+                    plt.fill([x,x,x+1,x+1],[y,y-1,y-1,y],"k")
+        plt.axis("equal")
+        plt.axis("off")
+        plt.show()
 
     def add_across(self,l,x,y):
         self.across.append((l,x,y))
@@ -45,7 +63,6 @@ class Crossnumber:
         if clue not in self.clues:
             raise NonexistentClue
         if len(str(answer)) != self.clues[clue]:
-            print(clue,answer)
             raise WrongLengthAnswer
         self.data[clue] = answer
 
@@ -53,6 +70,15 @@ class Crossnumber:
         if clue not in self.clues:
             raise NonexistentClue
         self.data[clue] = None
+
+    def check_desires(self):
+        for d in self.distinct:
+            ls = []
+            for i in d:
+                if self.data[i] in ls:
+                    return False
+                ls.append(self.data[i])
+        return True
 
     def test(self):
         for row in self.grid:

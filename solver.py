@@ -1,7 +1,13 @@
+RED = "\033[31m"
+DEFAULT = "\033[0m"
+
 def print_all(grid, options):
     if len(options) == 0:
         if grid.test():
-            print(grid)
+            if grid.check_desires():
+                print(grid)
+            else:
+                print(RED,grid,DEFAULT,sep="")
     else:
         arg = options[0]
         for i in arg[1]:
@@ -34,6 +40,9 @@ class Solver:
         self.grid = grid
         self.options = []
         self.clue_desc = {}
+
+    def set_desire(self, *args):
+        self.grid.set_desire(*args)
 
     def set_clue(self, clue, value, desc=None):
         self.grid.set_clue(clue, value)
