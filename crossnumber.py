@@ -21,7 +21,7 @@ class Crossnumber:
             plt.plot([i,i],[0,self.size],"k")
             plt.plot([0,self.size],[i,i],"k")
         for x in range(self.size):
-            for y in range(self.size):
+            for y in range(1,self.size+1):
                 if len(self.grid[-y][x]) == 0:
                     plt.fill([x,x,x+1,x+1],[y,y-1,y-1,y],"k")
         plt.axis("equal")
