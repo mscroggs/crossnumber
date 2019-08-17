@@ -1,139 +1,108 @@
-class NonexistentClue(BaseException):
-    pass
+class Clue:
+    def __init__(self, type, number, length, row, col):
+        self.type = type
+        self.number = number
+        self.length = length
+        self.row = row
+        self.col = col
+        if type == "a":
+            self.coords = [(self.row,self.col+i) for i in range(length)]
+        if type == "d":
+            self.coords = [(self.row+i,self.col) for i in range(length)]
 
-class WrongLengthAnswer(BaseException):
-    pass
+class CrossnumberGrid:
+    def __init__(self, grid):
+        self.data = []
+        for row in grid.strip().split("\n"):
+            rowdata = []
+            for item in row:
+                rowdata.append(item==".")
+            self.data.append(rowdata)
+        self.shape = (len(self.data),len(self.data[0]))
 
-class Crossnumber:
-    def __init__(self, size):
-        self.size = size
-        self.across = []
-        self.down = []
-        self.distinct = []
+        self.clue_dict = {}
+        self.clues = []
+        self.number_positions = [[None for i in range(self.shape[1])] for j in range(self.shape[0])]
+        n = 0
+        for i in range(self.shape[0]):
+            for j in range(self.shape[1]):
+                if self.data[i][j] and i+1<self.shape[0] and self.data[i+1][j] and (i==0 or not self.data[i-1][j]):
+                    n += 1
+                    self.number_positions[i][j] = n
+                    a = 0
+                    while a+i<self.shape[0] and self.data[i+a][j]:
+                        a += 1
+                    self.clues.append(Clue("d",n,a,i,j))
+                    self.clue_dict["d"+str(n)] = self.clues[-1]
+                if self.data[i][j] and j+1<self.shape[1] and self.data[i][j+1] and (j==0 or not self.data[i][j-1]):
+                    if self.number_positions[i][j] is None:
+                        n += 1
+                        self.number_positions[i][j] = n
+                    a = 0
+                    while a+j<self.shape[1] and self.data[i][j+a]:
+                        a += 1
+                    self.clues.append(Clue("a",n,a,i,j))
+                    self.clue_dict["a"+str(n)] = self.clues[-1]
 
-    def set_desire(self, dtype, *args):
-        if dtype == "distinct":
-            self.distinct.append(args)
+    def as_latex(self):
+        out = "\\begin{Puzzle}" + "{"+str(self.shape[0])+"}{"+str(self.shape[1])+"}"
+        out += "\n"
+        for i,row in enumerate(self.data):
+            for j,cell in enumerate(row):
+                out += "|"
+                if cell:
+                    out += "["
+                    n = self.number_positions[i][j]
+                    if n is not None:
+                        out += str(n)
+                    out += "][wf]0"
+                else:
+                    out += "*"
+            out += "|.\n"
+        out += "\\end{Puzzle}"
+
+        return out
+
 
     def plot(self):
         import matplotlib.pylab as plt
-        for i in range(self.size+1):
-            plt.plot([i,i],[0,self.size],"k")
-            plt.plot([0,self.size],[i,i],"k")
-        for x in range(self.size):
-            for y in range(1,self.size+1):
-                if len(self.grid[-y][x]) == 0:
+        for i in range(self.shape[0]+1):
+            plt.plot([i,i],[0,self.shape[1]],"k")
+        for i in range(self.shape[1]+1):
+            plt.plot([0,self.shape[0]],[i,i],"k")
+        for x in range(self.shape[0]):
+            for y in range(1,self.shape[1]+1):
+                if not self.data[-y][x]:
                     plt.fill([x,x,x+1,x+1],[y,y-1,y-1,y],"k")
         plt.axis("equal")
         plt.axis("off")
         plt.show()
 
-    def add_across(self,l,x,y):
-        self.across.append((l,x,y))
-
-    def add_down(self,l,x,y):
-        self.down.append((l,x,y))
-
-    def n(self, x, y):
-        for i,j in self.starts.items():
-            if x == i[0] and y == i[1]:
-                return j
-
-    def generate(self):
-        st = []
-        for l,x,y in self.across+self.down:
-            if (x,y) not in st:
-                st.append((x,y))
-        self.starts = {(x,y):i+1 for i,(x,y) in enumerate(sorted(st))}
-        self.grid = [[[] for j in range(self.size)] for i in range(self.size)]
-        self.data = {}
-        self.clues = {}
-        for l,x,y in self.across:
-            for i in range(l):
-                self.grid[x][y+i].append(("a",self.n(x,y),i))
-                self.data["a"+str(self.n(x,y))] = None
-                self.clues["a"+str(self.n(x,y))] = l
-        for l,x,y in self.down:
-            for i in range(l):
-                self.grid[x+i][y].append(("d",self.n(x,y),i))
-                self.data["d"+str(self.n(x,y))] = None
-                self.clues["d"+str(self.n(x,y))] = l
-
-    def set_clue(self, clue, answer):
-        if clue not in self.clues:
-            raise NonexistentClue
-        if len(str(answer)) != self.clues[clue]:
-            raise WrongLengthAnswer
-        self.data[clue] = answer
-
-    def unset_clue(self, clue):
-        if clue not in self.clues:
-            raise NonexistentClue
-        self.data[clue] = None
-
-    def check_desires(self):
-        for d in self.distinct:
-            ls = []
-            for i in d:
-                if self.data[i] in ls:
-                    return False
-                ls.append(self.data[i])
-        return True
-
-    def test(self):
-        for row in self.grid:
-            for cell in row:
-                if len(cell) == 2:
-                    a = self.data[cell[0][0]+str(cell[0][1])]
-                    d = self.data[cell[1][0]+str(cell[1][1])]
-                    if a is not None:
-                        a = str(a)[cell[0][2]]
-                    if d is not None:
-                        d = str(d)[cell[1][2]]
-                    if a is not None and d is not None and a != d:
-                        return False
-        for i in self.starts:
-            cell = self.grid[i[0]][i[1]]
-            for a in cell:
-                b = self.data[a[0]+str(a[1])]
-                if b is not None and str(b)[a[2]]=="0":
-                    return False
-        return True
+    def intersect(self, c1, c2):
+        if c1.type == c2.type:
+            return None
+        if c1.type == "a":
+            a = c1
+            d = c2
+        else:
+            d = c1
+            a = c2
+        if a.col <= d.col < a.col+a.length and d.row <= a.row < d.row+d.length:
+            return (d.col,a.row)
+        return None
 
     def __str__(self):
         return self.__unicode__()
 
-    def get(self, ls):
-        if len(ls) == 0:
+    def get(self, item):
+        if not item:
             return u"\u2588"
-        for a,n,i in ls:
-            if self.data[a+str(n)] is not None:
-                return str(self.data[a+str(n)])[i]
-        return "."
+        return " "
 
     def __unicode__(self):
-        out = u"\u2588"*(self.size+2) + "\n"
-        out += "\n".join([u"\u2588"+"".join([self.get(a) for a in row])+u"\u2588" for row in self.grid])
-        out += "\n" + u"\u2588"*(self.size+2)
-        return out
-
-    def as_latex(self):
-        out = "\\begin{Puzzle}" + ("{"+str(self.size)+"}")*2
-        out += "\n"
-        for i,row in enumerate(self.grid):
-            for j,cell in enumerate(row):
-                out += "|"
-                if len(cell) == 0:
-                    out += "*"
-                else:
-                    out += "["
-                    n = self.n(i,j)
-                    if n is not None:
-                        out += str(self.n(i,j))
-                    out += "][wf]0"
-            out += "|.\n"
-        out += "\\end{Puzzle}"
-
+        out = u"\u2588"*(self.shape[1]+2) + "\n"
+        out += "\n".join([u"\u2588"+"".join([self.get(a) for a in row])+u"\u2588" for row in self.data])
+        out += "\n" + u"\u2588"*(self.shape[1]+2)
         return out
 
     def as_html(self):
@@ -152,22 +121,6 @@ class Crossnumber:
                     out += "][wf]0"
             out += "|.\n"
         out += "\\end{Puzzle}"
-
-        return out
-
-    def solution_as_html(self):
-        out = "<table class='crossnumber'>\n<tbody>\n"
-        for i,row in enumerate(self.grid):
-            out += "<tr>\n"
-            for j,cell in enumerate(row):
-                if len(cell) == 0:
-                    out += "<td class='black'>"
-                else:
-                    out += "<td>"
-                    out += self.get(cell)
-                out += "</td>\n"
-            out += "</tr>\n"
-        out += "</tbody>\n</table>"
 
         return out
 

@@ -1,2 +1,2 @@
-from .crossnumber import Crossnumber
+from .crossnumber import CrossnumberGrid
 from .solver import Solver
