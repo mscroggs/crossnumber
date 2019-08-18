@@ -20,6 +20,7 @@ class CrossnumberGrid:
             self.data.append(rowdata)
         self.shape = (len(self.data),len(self.data[0]))
 
+        self.clues_in_space = [[[] for i in range(self.shape[1])] for j in range(self.shape[0])]
         self.clue_dict = {}
         self.clues = []
         self.number_positions = [[None for i in range(self.shape[1])] for j in range(self.shape[0])]
@@ -31,6 +32,7 @@ class CrossnumberGrid:
                     self.number_positions[i][j] = n
                     a = 0
                     while a+i<self.shape[0] and self.data[i+a][j]:
+                        self.clues_in_space[i+a][j].append(("d"+str(n),a))
                         a += 1
                     self.clues.append(Clue("d",n,a,i,j))
                     self.clue_dict["d"+str(n)] = self.clues[-1]
@@ -40,9 +42,11 @@ class CrossnumberGrid:
                         self.number_positions[i][j] = n
                     a = 0
                     while a+j<self.shape[1] and self.data[i][j+a]:
+                        self.clues_in_space[i][j+a].append(("a"+str(n),a))
                         a += 1
                     self.clues.append(Clue("a",n,a,i,j))
                     self.clue_dict["a"+str(n)] = self.clues[-1]
+        self.largest_clue = n
 
     def as_latex(self):
         out = "\\begin{Puzzle}" + "{"+str(self.shape[0])+"}{"+str(self.shape[1])+"}"

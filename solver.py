@@ -19,10 +19,11 @@ class Solver:
         self.clue_options = []
         self.clue_gen_f = []
         self.clue_function = []
+        self.clue_function_check = []
         self.filled = []
         self.solutions = []
 
-    def set_clue(self, clue, desc=None, value=None, options=None, function=None, finput=None):
+    def set_clue(self, clue, desc=None, value=None, options=None, function=None, finput=None, checkonly=False):
         if isinstance(clue, str):
             if desc is not None:
                 self.clue_desc[clue] = desc
@@ -41,11 +42,17 @@ class Solver:
             self.clue_options.append((clue,options))
         if function is not None:
             if finput is None:
-                self.clue_function.append((clue,function))
+                if checkonly:
+                    self.clue_function_check.append((clue,(function,clue)))
+                else:
+                    self.clue_function.append((clue,function))
             else:
                 if isinstance(finput, str):
                     finput = (finput,)
-                self.clue_gen_f.append((clue,(function,finput)))
+                if checkonly:
+                    self.clue_function_check.append((clue,(function,finput)))
+                else:
+                    self.clue_gen_f.append((clue,(function,finput)))
 
     def find_solutions(self,printing=False):
         self.filled = [[list(range(10)) if item else None for item in row] for row in self.grid.data]
@@ -61,7 +68,6 @@ class Solver:
                         raise NoSolution
                     self.filled[co[0]][co[1]] = [int(d)]
         if printing:
-            print(self)
             print("Reducing options")
         self.reduce_options()
         if printing:
@@ -69,7 +75,6 @@ class Solver:
             print("Making options from generating functions")
         self.make_options_from_gen_functions()
         if printing:
-            print(self)
             print("Reducing options")
         self.reduce_options()
         if printing:
@@ -77,9 +82,17 @@ class Solver:
             print("Making options from functions")
         self.make_options_from_functions()
         if printing:
-            print(self)
             print("Reducing options")
         self.reduce_options()
+        for clue,op in self.clue_options:
+            if len(op) == 0:
+                print("No options for",clue)
+                return []
+        for i,row in enumerate(self.filled):
+            for j,item in enumerate(row):
+                if item is not None and len(item)==0:
+                    print("No options at",(i,j))
+                    return []
         if printing:
             print(self)
             print("Solving...")
@@ -89,8 +102,22 @@ class Solver:
     def print_all_solutions(self):
         return self.find_solutions(printing=True)
 
+    def can_add(self, done, clue, value):
+        for a,co in enumerate(self.grid.clue_dict[clue].coords):
+            for c,b in self.grid.clues_in_space[co[0]][co[1]]:
+                if c in done and str(done[c])[b] != str(value)[a]:
+                    return False
+        return True
+
     def validate(self, done):
-        filled = [[i[0] if i is not None and len(i)==0 else None for i in row] for row in self.filled]
+        for _,(func, finp) in self.clue_function_check:
+            for c in finp:
+                if c not in done:
+                    break
+            else:
+                if not func(*[done[c] for c in finp]):
+                    return False
+        filled = [[i[0] if i is not None and len(i)==1 else None for i in row] for row in self.filled]
         for clue, value in done.items():
             for digit, co in zip(str(value), self.grid.clue_dict[clue].coords):
                 digit = int(digit)
@@ -139,38 +166,64 @@ class Solver:
         if len(todo) == 0:
             if printing:
                 self.print_solution(done)
-            return [done]
+            return [done] # TODO: then fill in remaining digits and test
         out = []
+        todo.sort(key=lambda x:self.rating(x[0],x[1],done))
         clue,options = todo[0]
         for op in options:
-            out += self.try_options({**done,**{i:j for i,j in zip(clue,op)}}, printing=printing)
+            for c,o in zip(clue,op):
+                if not self.can_add(done,c,o):
+                    break
+            else:
+                out += self.try_options({**done,**{i:j for i,j in zip(clue,op)}}, printing=printing)
+        return out
+
+    def rating(self, clue, options, done):
+        out = 0
+        for c in clue:
+            for co in self.grid.clue_dict[c].coords:
+                if len(self.filled[co[0]][co[1]]) == 1:
+                    out += 1
+                for c2 in self.grid.clues_in_space[co[0]][co[1]]:
+                    if c2 != c and c2 not in done:
+                        out += 1
         return out
 
     def make_options_from_functions(self):
         from itertools import product
         for clues, function in self.clue_function:
-            print(clues)
             op = []
             lists = []
             for c in clues:
                 lists.append([int("".join(i)) for i in product(*[[str(j) for j in self.filled[co[0]][co[1]]] for co in self.grid.clue_dict[c].coords])])
             for a in product(*lists):
                 if function(*a):
-                    op.append(a)
+                    for c,i in zip(clues,a):
+                        if len(str(i)) != self.grid.clue_dict[c].length:
+                            break
+                    else:
+                        op.append(a)
             self.clue_options.append((clues,op))
 
     def make_options_from_gen_functions(self):
         from itertools import product
         for clues, (function, finput) in self.clue_gen_f:
-            print(clues)
             op = []
             lists = []
             for c in finput:
                 lists.append([int("".join(i)) for i in product(*[[str(j) for j in self.filled[co[0]][co[1]]] for co in self.grid.clue_dict[c].coords])])
             for a in product(*lists):
                 b = function(*a)
+                try:
+                    len(b)
+                except:
+                    b = [b]
                 if b is not None:
-                    op.append(b)
+                    for c,i in zip(clues,b):
+                        if len(str(i)) != self.grid.clue_dict[c].length:
+                            break
+                    else:
+                        op.append(b)
             self.clue_options.append((clues,op))
 
     def reduce_options(self):
@@ -196,6 +249,7 @@ class Solver:
                                 changed = True
 
         if changed:
+            print("Reducing again")
             self.reduce_options()
 
     def __unicode__(self):
@@ -222,35 +276,36 @@ class Solver:
 
     def solution_as_html(self):
         return get_solution(self.grid, self.options).solution_as_html()
-
+"""
     def as_latex(self):
         out = self.grid.as_latex()
         out += "\n\n"
-        out += "Across\n"
-        out += "\\begin{tabular}{>{\\bfseries}r p{5.8cm} >{\\bfseries}r}\n"
-        for i in range(len(self.grid.starts)):
+        out += "\\begin{crossnumberclue}{Across}\n"
+        for i in range(1,self.grid.largest_clue+1):
             key = "a"+str(i)
-            if key in self.grid.clues:
+            if key in self.grid.clue_dict:
                 out += str(i)+"&"
                 try:
                     out += self.clue_desc[key]
                 except:
                     pass
-                out += "&(" + str(self.grid.clues[key]) + ")\\\\\n"
-        out += "\\end{tabular}"
+                out += "&(" + str(self.grid.clue_dict[key].length) + ")\\\\\n"
+        out += "\\end{crossnumberclues}\n\\hfill\n"
 
-        out += "\n\n"
-        out += "Down\n"
-        out += "\\begin{tabular}{>{\\bfseries}r p{5.8cm} >{\\bfseries}r}\n"
-        for i in range(len(self.grid.starts)):
+        out += "\\begin{crossnumberclue}{Down}\n"
+        for i in range(1,self.grid.largest_clue+1):
             key = "d"+str(i)
-            if key in self.grid.clues:
+            if key in self.grid.clue_dict:
                 out += str(i)+"&"
                 try:
                     out += self.clue_desc[key]
                 except:
                     pass
-                out += "&(" + str(self.grid.clues[key]) + ")\\\\\n"
-        out += "\\end{tabular}"
+                out += "&(" + str(self.grid.clue_dict[key].length) + ")\\\\\n"
+        out += "\\end{crossnumberclues}"
 
-        return out"""
+        return out
+
+    def save_latex(self, filename):
+        with open(filename,"w") as f:
+            f.write(self.as_latex())
