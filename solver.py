@@ -1,3 +1,5 @@
+from itertools import product
+
 class NonexistentClue(BaseException):
     pass
 
@@ -13,7 +15,6 @@ DEFAULT = "\033[0m"
 class Solver:
     def __init__(self, grid):
         self.grid = grid
-        self.options = []
         self.clue_desc = {}
         self.clue_value = []
         self.clue_options = []
@@ -22,6 +23,7 @@ class Solver:
         self.clue_function_check = []
         self.filled = []
         self.solutions = []
+        self.prepared = False
 
     def set_clue(self, clue, desc=None, value=None, options=None, function=None, finput=None, checkonly=False):
         if isinstance(clue, str):
@@ -54,7 +56,8 @@ class Solver:
                 else:
                     self.clue_gen_f.append((clue,(function,finput)))
 
-    def find_solutions(self,printing=False):
+    def prepare(self,printing=False):
+        self.prepared = True
         self.filled = [[list(range(10)) if item else None for item in row] for row in self.grid.data]
         for i in range(self.grid.shape[0]):
             for j in range(self.grid.shape[1]):
@@ -93,11 +96,59 @@ class Solver:
                 if item is not None and len(item)==0:
                     print("No options at",(i,j))
                     return []
+
+    def find_solutions(self,printing=False):
+        if not self.prepared:
+            self.prepare(printing=printing)
         if printing:
             print(self)
             print("Solving...")
         self.solutions = self.try_options(printing=printing)
+        if printing:
+            sols = len(self.solutions)
+            if sols == 1:
+                print("There is 1 solution.")
+            else:
+                print("There are",sols,"solutions.")
         return self.solutions
+
+    def solve_part(self, cluelist, printing=False):
+        if printing:
+            print("Solving a small part of the crossnumber")
+        minisolver = Solver(self.grid)
+        for clues in self.clue_options:
+            for c in clues[0]:
+                if c in cluelist:
+                    minisolver.clue_options.append(clues)
+                    break
+
+        minisolver.filled = self.filled
+        solutions = minisolver.try_options(printing=printing)
+
+        filled = [[None for i in row] for row in self.filled]
+
+        for sol in solutions:
+            for clue, n in sol.items():
+                for co,digit in zip(self.grid.clue_dict[clue].coords,str(n)):
+                    if filled[co[0]][co[1]] is None:
+                        filled[co[0]][co[1]] = []
+                    if int(digit) not in filled[co[0]][co[1]]:
+                        filled[co[0]][co[1]].append(int(digit))
+
+        if printing:
+            print("Filtering digits")
+
+        for i,row in enumerate(filled):
+            for j,item in enumerate(row):
+                if item is not None:
+                    for digit in range(10):
+                        if digit in self.filled[i][j] and digit not in item:
+                            self.filled[i][j].remove(digit)
+        if printing:
+            print("Reducing options")
+        self.reduce_options()
+        if printing:
+            print(self)
 
     def print_all_solutions(self):
         return self.find_solutions(printing=True)
@@ -154,6 +205,40 @@ class Solver:
         out += u"\u2588"*(self.grid.shape[1]+2)
         print(out)
 
+    def finish_off(self, done):
+        filled = [[j for j in i] for i in self.filled]
+        for clue,value in done.items():
+            for co,digit in zip(self.grid.clue_dict[clue].coords,str(value)):
+                filled[co[0]][co[1]] = [int(digit)]
+        todos = []
+        acceptables = []
+        for _,(func, finp) in self.clue_function_check:
+            todo = [i for i in finp if i not in done]
+            if len(todo) == 0 and not func(*[done[i] for i in finp]):
+                return []
+            if len(todo) > 0:
+                options = []
+                for clue in todo:
+                    opthis = []
+                    for digits in product(*[filled[co[0]][co[1]] for co in self.grid.clue_dict[clue].coords]):
+                        opthis.append(int("".join([str(i) for i in digits])))
+                    options.append(opthis)
+                acceptable = []
+                for op in product(*options):
+                    if func(*[op[todo.index(i)] if i in todo else done[i] for i in finp]):
+                        acceptable.append(op)
+                acceptables.append(acceptable)
+                todos.append(todo)
+        if len(todos) == 0:
+            return [done]
+        out = []
+        for choice in product(*acceptables):
+            new = {}
+            for i,j in zip(todos,choice):
+                new = {**new,**{a:b for a,b in zip(i,j)}}
+            out.append({**done,**new})
+        return out
+
     def try_options(self, done={}, printing=False):
         if not self.validate(done):
             return []
@@ -164,9 +249,12 @@ class Solver:
                     todo.append((i,j))
                     break
         if len(todo) == 0:
+            sols = self.finish_off(done)
             if printing:
-                self.print_solution(done)
-            return [done] # TODO: then fill in remaining digits and test
+                for s in sols:
+                    self.print_solution(s)
+            return sols
+            #return [done] # TODO: then fill in remaining digits and test
         out = []
         todo.sort(key=lambda x:self.rating(x[0],x[1],done))
         clue,options = todo[0]
@@ -190,7 +278,6 @@ class Solver:
         return out
 
     def make_options_from_functions(self):
-        from itertools import product
         for clues, function in self.clue_function:
             op = []
             lists = []
@@ -206,7 +293,6 @@ class Solver:
             self.clue_options.append((clues,op))
 
     def make_options_from_gen_functions(self):
-        from itertools import product
         for clues, (function, finput) in self.clue_gen_f:
             op = []
             lists = []
@@ -309,3 +395,4 @@ class Solver:
     def save_latex(self, filename):
         with open(filename,"w") as f:
             f.write(self.as_latex())
+
