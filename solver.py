@@ -102,7 +102,15 @@ class Solver:
             self.prepare(printing=printing)
         if printing:
             print(self)
-            print("Solving...")
+            n = 1
+            for i in self.clue_options:
+                n *= len(i[1])
+            print("Solving... ("+str(n)+" options to try)")
+            maxi = (0,None)
+            for i in self.clue_options:
+                if len(i[1]) > maxi[0]:
+                    maxi = (len(i[1]),i[0])
+            print("Most options ("+str(maxi[0])+"):",maxi[1])
         self.solutions = self.try_options(printing=printing)
         if printing:
             sols = len(self.solutions)
@@ -110,20 +118,28 @@ class Solver:
                 print("There is 1 solution.")
             else:
                 print("There are",sols,"solutions.")
+
+            if sols > 0:
+                self.print_unique(self.solutions)
         return self.solutions
+
 
     def solve_part(self, cluelist, printing=False):
         if printing:
-            print("Solving a small part of the crossnumber")
+            print("Solving a small part of the crossnumber:",cluelist)
         minisolver = Solver(self.grid)
-        for clues in self.clue_options:
+        for i,clues in enumerate(self.clue_options):
             for c in clues[0]:
                 if c in cluelist:
                     minisolver.clue_options.append(clues)
                     break
+        for clues in self.clue_function_check:
+            for c in clues[1][1]:
+                if c in cluelist:
+                    minisolver.clue_function_check.append(clues)
 
         minisolver.filled = self.filled
-        solutions = minisolver.try_options(printing=printing)
+        solutions = minisolver.try_options(done={i:j for i,j in self.clue_value},printing=printing)
 
         filled = [[None for i in row] for row in self.filled]
 
@@ -144,6 +160,7 @@ class Solver:
                     for digit in range(10):
                         if digit in self.filled[i][j] and digit not in item:
                             self.filled[i][j].remove(digit)
+
         if printing:
             print("Reducing options")
         self.reduce_options()
@@ -236,8 +253,15 @@ class Solver:
             new = {}
             for i,j in zip(todos,choice):
                 new = {**new,**{a:b for a,b in zip(i,j)}}
-            out.append({**done,**new})
+            if self.check({**done,**new}):
+                out.append({**done,**new})
         return out
+
+    def check(self, done):
+        for _,(func, finp) in self.clue_function_check:
+            if not func(*[done[i] for i in finp]):
+                return False
+        return True
 
     def try_options(self, done={}, printing=False):
         if not self.validate(done):
@@ -254,7 +278,6 @@ class Solver:
                 for s in sols:
                     self.print_solution(s)
             return sols
-            #return [done] # TODO: then fill in remaining digits and test
         out = []
         todo.sort(key=lambda x:self.rating(x[0],x[1],done))
         clue,options = todo[0]
@@ -318,7 +341,8 @@ class Solver:
         for n,(clues,options) in enumerate(self.clue_options):
             for i,c in enumerate(clues):
                 for j,co in enumerate(self.grid.clue_dict[c].coords):
-                    self.clue_options[n] = (clues,[o for o in options if int(str(o[i])[j]) in self.filled[co[0]][co[1]]])
+                    self.clue_options[n] = (clues,[o for o in self.clue_options[n][1] if int(str(o[i])[j]) in self.filled[co[0]][co[1]]])
+
         if pre != sum(len(j) for i,j in self.clue_options):
             changed = True
 
@@ -338,6 +362,16 @@ class Solver:
             print("Reducing again")
             self.reduce_options()
 
+        for i,j in self.clue_options:
+            if len(j) == 0:
+                print("No options for",i)
+
+        for i in self.clue_options:
+            if len(i[1]) == 1:
+                for c,v in zip(i[0],i[1][0]):
+                    self.clue_value.append((c,v))
+        self.clue_options = [i for i in self.clue_options if len(i[1]) != 1]
+
     def __unicode__(self):
         out = u"\u2588"*(self.grid.shape[1]+2) + "\n"
         for row in self.filled:
@@ -353,6 +387,28 @@ class Solver:
             out += "\n"
         out += u"\u2588"*(self.grid.shape[1]+2)
         return out
+
+    def print_unique(self,solutions):
+        filled = [[None if i is None else (i if len(i)==1 else []) for i in row] for row in self.filled]
+        for s in solutions:
+            for clue,value in s.items():
+                for co,digit in zip(self.grid.clue_dict[clue].coords,str(value)):
+                    if int(digit) not in filled[co[0]][co[1]]:
+                        filled[co[0]][co[1]].append(int(digit))
+######
+        print(u"\u2588"*(self.grid.shape[1]+2))
+        for row in filled:
+            out = u"\u2588"
+            for item in row:
+                if item is None:
+                    out += u"\u2588"
+                elif len(item) == 1:
+                    out += str(item[0])
+                else:
+                    out += " "
+            out += u"\u2588"
+            print(out,*[i for i in row if i is not None and len(i)>1])
+        print("\u2588"*(self.grid.shape[1]+2))
 
     def __str__(self):
         return self.__unicode__()
