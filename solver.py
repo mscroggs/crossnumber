@@ -253,8 +253,9 @@ class Solver:
             new = {}
             for i,j in zip(todos,choice):
                 new = {**new,**{a:b for a,b in zip(i,j)}}
-            if self.check({**done,**new}):
-                out.append({**done,**new})
+            sol = {**done,**new}
+            if self.check(sol) and sol not in out:
+                out.append(sol)
         return out
 
     def check(self, done):
