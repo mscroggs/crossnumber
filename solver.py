@@ -89,12 +89,14 @@ class Solver:
         self.reduce_options()
         for clue,op in self.clue_options:
             if len(op) == 0:
-                print("No options for",clue)
+                if printing:
+                    print("No options for",clue)
                 return []
         for i,row in enumerate(self.filled):
             for j,item in enumerate(row):
                 if item is not None and len(item)==0:
-                    print("No options at",(i,j))
+                    if printing:
+                        print("No options at",(i,j))
                     return []
 
     def find_solutions(self,printing=False):
@@ -222,6 +224,32 @@ class Solver:
         out += u"\u2588"*(self.grid.shape[1]+2)
         print(out)
 
+    def html_solution(self, done):
+        filled = [[None for i in row] for row in self.filled]
+        for i,row in enumerate(self.filled):
+            for j,item in enumerate(row):
+                if item is not None:
+                    if len(item) == 1:
+                        filled[i][j] = str(item[0])
+                    else:
+                        filled[i][j] = " "
+        for clue, value in done.items():
+            for digit, co in zip(str(value), self.grid.clue_dict[clue].coords):
+                filled[co[0]][co[1]] = digit
+
+        out = "<table>\n"
+        for row in filled:
+            out += "<tr>"
+            for item in row:
+                if item is None:
+                    out += "<td class='black'></td>"
+                else:
+                    assert len(item) == 1
+                    out += f"<td>{item[0]}</td>"
+            out += "</tr>\n"
+        out += "</table>"
+        print(out)
+
     def finish_off(self, done):
         filled = [[j for j in i] for i in self.filled]
         for clue,value in done.items():
@@ -336,7 +364,7 @@ class Solver:
                         op.append(b)
             self.clue_options.append((clues,op))
 
-    def reduce_options(self):
+    def reduce_options(self, printing=False):
         changed = False
         pre = sum(len(j) for i,j in self.clue_options)
         for n,(clues,options) in enumerate(self.clue_options):
@@ -360,12 +388,14 @@ class Solver:
                                 changed = True
 
         if changed:
-            print("Reducing again")
+            if printing:
+                print("Reducing again")
             self.reduce_options()
 
         for i,j in self.clue_options:
             if len(j) == 0:
-                print("No options for",i)
+                if printing:
+                    print("No options for",i)
 
         for i in self.clue_options:
             if len(i[1]) == 1:
