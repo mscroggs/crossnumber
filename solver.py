@@ -248,7 +248,7 @@ class Solver:
                     out += f"<td>{item[0]}</td>"
             out += "</tr>\n"
         out += "</table>"
-        print(out)
+        return out
 
     def finish_off(self, done):
         filled = [[j for j in i] for i in self.filled]
@@ -453,7 +453,7 @@ class Solver:
     def as_latex(self):
         out = self.grid.as_latex()
         out += "\n\n"
-        out += "\\begin{crossnumberclue}{Across}\n"
+        out += "\\begin{crossnumberclues}{Across}\n"
         for i in range(1,self.grid.largest_clue+1):
             key = "a"+str(i)
             if key in self.grid.clue_dict:
@@ -465,7 +465,7 @@ class Solver:
                 out += "&(" + str(self.grid.clue_dict[key].length) + ")\\\\\n"
         out += "\\end{crossnumberclues}\n\\hfill\n"
 
-        out += "\\begin{crossnumberclue}{Down}\n"
+        out += "\\begin{crossnumberclues}{Down}\n"
         for i in range(1,self.grid.largest_clue+1):
             key = "d"+str(i)
             if key in self.grid.clue_dict:
