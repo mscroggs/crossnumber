@@ -180,7 +180,7 @@ class Solver:
         return True
 
     def validate(self, done):
-        for _,(func, finp) in self.clue_function_check:
+        for _, (func, finp) in self.clue_function_check:
             for c in finp:
                 if c not in done:
                     break
