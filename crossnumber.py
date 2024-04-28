@@ -67,6 +67,25 @@ class CrossnumberGrid:
 
         return out
 
+    def as_tikz(self):
+        out = "\\begin{tikzpicture}[x=8mm,y=8mm]\n"
+        out += f"\\fill[white] (0,0) rectangle ({self.shape[0]},{self.shape[1]});\n"
+        out += f"\\foreach \\x in {{0, ..., {self.shape[0]}}}\n"
+        out += f"  \\draw[line width=0.5pt, black] (\\x,0) -- (\\x,{self.shape[1]});\n"
+        out += f"\\foreach \\y in {{0, ..., {self.shape[1]}}}\n"
+        out += f"  \\draw[line width=0.5pt, black] (0,\\y) -- ({self.shape[0]},\\y);\n"
+        out += "\\fill[black] "
+        out += " ".join(f"({j},{self.shape[0] - i-1}) rectangle +(1,1)" for i, row in enumerate(self.data) for j, cell in enumerate(row) if not cell)
+        out += ";\n"
+        for i,row in enumerate(self.data):
+            for j,cell in enumerate(row):
+                if cell:
+                    n = self.number_positions[i][j]
+                    if n is not None:
+                        out += f"\\node[anchor=north west,inner sep=1pt] at ({j},{self.shape[0] - i}) {{\\footnotesize{n}}};\n"
+        out += "\\end{tikzpicture}"
+
+        return out
 
     def plot(self):
         import matplotlib.pylab as plt
